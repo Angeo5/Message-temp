@@ -1,0 +1,7 @@
+{
+  "type": "module",
+  "dependencies": {
+    "@vercel/kv": "^0.2.4",
+    "multer": "^1.4.5"
+  }
+}
