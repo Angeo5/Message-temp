@@ -227,7 +227,7 @@ generateBtn.addEventListener("click", async () => {
   if (visualFile) formData.append("visual", visualFile);
   if (audioBlob) formData.append("audio", audioBlob, "audio.webm");
 
-  const res = await fetch("/api/create", { method: "POST", body: formData });
+  const res = await fetch("https://temporary-link-server.vercel.app/", { method: "POST", body: formData });
   const data = await res.json();
 
   resultBox.style.display = "block";
