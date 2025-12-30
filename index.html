@@ -104,11 +104,188 @@
       border-radius: 10px;
       word-break: break-all;
     }
-    
-    /* ===============================
-   CENTRAGE DES BOUTONS (LECTURE)
+
+    #viewBlock {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #replyBtn,
+    #homeBtn {
+      margin-top: 15px;
+      width: 100%;
+      max-width: 260px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <!-- 🔹 ACCUEIL -->
+  <div class="card" id="homeBlock">
+    <h1>Message à lien temporaire</h1>
+    <p>Texte, image/vidéo et audio explicatif</p>
+
+    <textarea id="textMessage" placeholder="Écris ton message..."></textarea>
+
+    <div class="actions">
+      <label class="btn secondary">
+        📷 Image / 🎥 Vidéo
+        <input type="file" id="visualInput" accept="image/*,video/*">
+      </label>
+
+      <button class="btn secondary" id="recordBtn">🎤 Enregistrer un audio</button>
+      <button class="btn" id="generateBtn">🔗 Générer le lien</button>
+    </div>
+
+    <div id="preview"></div>
+    <div class="result" id="resultBox"></div>
+  </div>
+
+  <!-- 🔹 LECTURE -->
+  <div class="card" id="viewBlock" style="display:none;">
+    <h1 id="viewTitle"></h1>
+    <div id="viewContent"></div>
+
+    <button class="btn" id="replyBtn" style="display:none;">↩️ Répondre</button>
+    <button class="btn" id="homeBtn" style="display:none;">🔐 Revenir à l’accueil</button>
+  </div>
+
+</div>
+
+<script>
+let visualFile = null;
+let audioBlob = null;
+let mediaRecorder;
+let audioChunks = [];
+
+const homeBlock = document.getElementById("homeBlock");
+const viewBlock = document.getElementById("viewBlock");
+const viewTitle = document.getElementById("viewTitle");
+const viewContent = document.getElementById("viewContent");
+const replyBtn = document.getElementById("replyBtn");
+const homeBtn = document.getElementById("homeBtn");
+
+/* ===============================
+   IMAGE / VIDEO
 ================================ */
-#viewBlock {
+visualInput.addEventListener("change", e => {
+  visualFile = e.target.files[0];
+  preview.innerHTML = "";
+
+  if (!visualFile) return;
+
+  const el = visualFile.type.startsWith("video")
+    ? document.createElement("video")
+    : document.createElement("img");
+
+  el.src = URL.createObjectURL(visualFile);
+  if (el.tagName === "VIDEO") el.controls = true;
+  preview.appendChild(el);
+});
+
+/* ===============================
+   AUDIO
+================================ */
+recordBtn.addEventListener("click", async () => {
+  if (!mediaRecorder || mediaRecorder.state === "inactive") {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+
+    mediaRecorder.onstop = () => {
+      audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+      const audio = document.createElement("audio");
+      audio.controls = true;
+      audio.src = URL.createObjectURL(audioBlob);
+      preview.appendChild(audio);
+    };
+
+    mediaRecorder.start();
+    recordBtn.textContent = "⏹️ Arrêter l’audio";
+  } else {
+    mediaRecorder.stop();
+    recordBtn.textContent = "🎤 Enregistrer un audio";
+  }
+});
+
+/* ===============================
+   FETCH 1 — CRÉATION
+================================ */
+generateBtn.addEventListener("click", async () => {
+  const formData = new FormData();
+
+  if (textMessage.value) formData.append("text", textMessage.value);
+  if (visualFile) formData.append("visual", visualFile);
+  if (audioBlob) formData.append("audio", audioBlob, "audio.webm");
+
+  const res = await fetch("/api/create", {
+    method: "POST",
+    body: formData
+  });
+
+  const data = await res.json();
+
+  resultBox.style.display = "block";
+  resultBox.innerHTML = `<strong>Lien :</strong><br>${data.link}`;
+});
+
+/* ===============================
+   FETCH 2 — LECTURE
+================================ */
+async function readMessageFromLink() {
+  const token = new URLSearchParams(window.location.search).get("token");
+  if (!token) return;
+
+  const res = await fetch(`/api/read?token=${token}`);
+  const data = await res.json();
+
+  homeBlock.style.display = "none";
+  viewBlock.style.display = "block";
+  viewContent.innerHTML = "";
+  replyBtn.style.display = "none";
+  homeBtn.style.display = "none";
+
+  if (data.error) {
+    viewTitle.textContent = data.message;
+    viewTitle.style.color = "var(--danger)";
+    homeBtn.style.display = "block";
+    return;
+  }
+
+  viewTitle.textContent = "📩 Message reçu";
+  viewTitle.style.color = "var(--success)";
+  replyBtn.style.display = "block";
+
+  const msg = data.data;
+
+  if (msg.text) viewContent.innerHTML += `<p>${msg.text}</p>`;
+  if (msg.visualUrl) viewContent.innerHTML += `<img src="${msg.visualUrl}">`;
+  if (msg.audioUrl) viewContent.innerHTML += `<audio src="${msg.audioUrl}" controls></audio>`;
+}
+
+/* ===============================
+   NAVIGATION
+================================ */
+function goHome() {
+  viewBlock.style.display = "none";
+  homeBlock.style.display = "block";
+  window.history.replaceState({}, document.title, "/");
+}
+
+replyBtn.onclick = goHome;
+homeBtn.onclick = goHome;
+
+window.addEventListener("load", readMessageFromLink);
+</script>
+
+</body>
+      </html>#viewBlock {
   display: flex;
   flex-direction: column;
   align-items: center; /* centre horizontalement */
