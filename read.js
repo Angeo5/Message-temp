@@ -1,7 +1,21 @@
 import { kv } from "@vercel/kv";
 
 export default async function handler(req, res) {
+  if (req.method !== "GET") {
+    return res.status(405).json({
+      error: true,
+      message: "Méthode non autorisée"
+    });
+  }
+
   const { token } = req.query;
+
+  if (!token) {
+    return res.status(400).json({
+      error: true,
+      message: "Token manquant"
+    });
+  }
 
   try {
     const key = `msg:${token}`;
@@ -14,10 +28,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // 🔥 Suppression immédiate → lecture unique
-    await kv.del(key);
-
-    // Reconstruction des médias
+    // Reconstruction des médias AVANT suppression
     let visualUrl = null;
     let audioUrl = null;
 
@@ -29,16 +40,24 @@ export default async function handler(req, res) {
       audioUrl = `data:${data.audio.type};base64,${data.audio.data}`;
     }
 
+    const responsePayload = {
+      text: data.text,
+      visualUrl,
+      audioUrl
+    };
+
+    // 🔥 Lecture unique → suppression après reconstruction
+    await kv.del(key);
+
     res.json({
       success: true,
-      data: {
-        text: data.text,
-        visualUrl,
-        audioUrl
-      }
+      data: responsePayload
     });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: true, message: "Erreur serveur" });
+    res.status(500).json({
+      error: true,
+      message: "Erreur serveur"
+    });
   }
-}
+                         }
