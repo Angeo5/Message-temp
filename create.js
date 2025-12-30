@@ -24,9 +24,15 @@ export default async function handler(req, res) {
     }
 
     try {
-      const token = crypto.randomBytes(6).toString("hex");
+      const text = req.body?.text?.trim() || null;
 
-      const text = req.body.text || null;
+      if (!text && !req.files?.visual && !req.files?.audio) {
+        return res.status(400).json({
+          error: "Message vide"
+        });
+      }
+
+      const token = crypto.randomBytes(6).toString("hex");
 
       let visual = null;
       let audio = null;
@@ -53,10 +59,11 @@ export default async function handler(req, res) {
         audio
       };
 
-      // ⏱️ Expiration 5 minutes
+      // ⏱️ Expiration : 5 minutes
       await kv.set(`msg:${token}`, payload, { ex: 300 });
 
-      const link = `${req.headers.origin}/?token=${token}`;
+      const baseUrl = `https://${req.headers.host}`;
+      const link = `${baseUrl}/?token=${token}`;
 
       res.json({ link });
     } catch (e) {
@@ -64,4 +71,4 @@ export default async function handler(req, res) {
       res.status(500).json({ error: "Erreur serveur" });
     }
   });
-}
+        }
